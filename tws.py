@@ -10,11 +10,16 @@ import time
 # Wrapper class
 class Wrapper(EWrapper):
 
+  # Inicializace datovych front pro servertime a error  #TODO: Pridat answers queue
   # noinspection PyMissingConstructor
   def __init__(self):
+    error_queue = queue.Queue()
+    self.my_errors_queue = error_queue
+    time_queue = queue.Queue()
+    self.my_time_queue = time_queue
     self.next_id = 0
 
-  # Log and Answers handling
+  # Answers handling    #TODO: Must be rewritten
   def logAnswer(self, fn_name, fn_params):
     if 'self' in fn_params:
       prms = dict(fn_params)
@@ -33,9 +38,6 @@ class Wrapper(EWrapper):
     self.next_id = order_id
 
   # Error Handling methods
-  def init_error(self):
-    error_queue = queue.Queue()
-    self.my_errors_queue = error_queue
 
   def is_error(self):
     error_exists = not self.my_errors_queue.empty()
@@ -49,17 +51,15 @@ class Wrapper(EWrapper):
         return None
     return None
 
-  def error(self, id, errorCode, errorString):
-    errormessage = "[API ERROR %d] Error Code: %d Message: %s" % (id, errorCode, errorString)
-    if id == self.next_id:
+  def error(self, reqId, errorCode, errorString):
+    errormessage = "[API ERROR %d] Error Code: %d Message: %s" % (reqId, errorCode, errorString)
+    if reqId == self.next_id:
       print("IMPORTANT" + errormessage)
     self.my_errors_queue.put(errormessage)
 
   # Time Handling
   def init_time(self):
-    time_queue = queue.Queue()
-    self.my_time_queue = time_queue
-    return time_queue
+    return self.my_time_queue
 
   def currentTime(self, server_time):
     self.my_time_queue.put(server_time)
@@ -101,8 +101,6 @@ class EjPiPi(Wrapper, ElCliento):
     thread.start()
     setattr(self, "_thread", thread)
 
-    self.init_error()
-
   @staticmethod
   def contract_create(symbol, expiration, strike, right):
     contract = Contract()
@@ -124,30 +122,32 @@ class EjPiPi(Wrapper, ElCliento):
     order.totalQuantity = quantity
     return order
 
-  # Akce; Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
+  # Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
   def send_order(self, symbol, expiration, right, strike, action, quantity):
+    contract_object = self.contract_create(symbol, expiration, strike, right)
+    order_object = self.order_create(action, quantity)
+    self.placeOrder(self.next_id, contract_object, order_object)
+    self.reqIds(1)
 
-    contractObject = self.contract_create(symbol, expiration, strike, right)
-    orderObject = self.order_create(action, quantity)
-    self.placeOrder(self.next_id, contractObject, orderObject)
-
-  def awaitID(self):
+  def await_id(self):
     for i in range(10):
-      if (i < 10):
+      if i < 10:
         if not self.next_id == 0:
-          return ("Connection established with ID: %d" % self.next_id)
+          return "Connection established with ID: %d" % self.next_id
         else:
           print("Connecting to server")
           time.sleep(1)
       else:
-        return ("Timed out")
+        return "Timed out"
 
 
-def runMe(symbol, expiration, right, strike, action, quantity):
+# Basically what this retard does is starts the Application class, waits for servertime and ID, then places order, prints queues and returns with a [success] var
+def runMe(symbol, expiration, right, strike, action,
+          quantity):  # TODO: This nigga goin down - hanging around for organ picking
   orderCompleted = False
   app = EjPiPi("127.0.0.1", 7497, 0)
   print(app.server_clock())
-  print(app.awaitID())
+  print(app.await_id())
   app.send_order(symbol, expiration, right, strike, action, quantity)
   time.sleep(3)
   while app.is_error():
@@ -159,3 +159,6 @@ def runMe(symbol, expiration, right, strike, action, quantity):
   time.sleep(1)
   app.disconnect()
   return orderCompleted
+
+# TODO: Vytvorit funkci pro ruseni pozic
+# TODO: Sledovat splnene kontrakty a predavat do main threadu pro odstraneni z DB

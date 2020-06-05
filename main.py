@@ -97,20 +97,20 @@ ib_queue = queue.Queue()
 tg_client = TgWrapper(tg_config, tg_queue).session
 tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
 
-# Hlavni event loop programu
-if __name__ == "__main__":
-  tg_client.start()
-  print(tws_client.server_clock())
-  print(tws_client.awaitID())
-
-  while True:
-    time.sleep(1)
-    if not tg_queue.empty():
-      raw_signal = tg_queue.get(timeout=5)
-      print("RAW SIGNAL")
-      print(raw_signal)
-      digested_signal = digest_signal(raw_signal)
-      if digested_signal['emoji'] == "open":
-        tws_position_open(digested_signal)
-      elif digested_signal['emoji'] == "close":
-        tws_position_close(digested_signal)
+# # Hlavni event loop programu
+# if __name__ == "__main__":
+#   tg_client.start()
+#   print(tws_client.server_clock())
+#   print(tws_client.await_id())
+#
+#   while True:
+#     time.sleep(1)
+#     if not tg_queue.empty():
+#       raw_signal = tg_queue.get(timeout=5)
+#       print("RAW SIGNAL")
+#       print(raw_signal)
+#       digested_signal = digest_signal(raw_signal)
+#       if digested_signal['emoji'] == "open":
+#         tws_position_open(digested_signal)
+#       elif digested_signal['emoji'] == "close":
+#         tws_position_close(digested_signal)

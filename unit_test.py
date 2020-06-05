@@ -18,3 +18,4 @@ def test_digest_signal():
       'mnozstvi': "1",
       'cena': "332"
     }
+
