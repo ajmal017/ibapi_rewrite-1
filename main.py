@@ -1,5 +1,5 @@
 import time
-import logging
+import data
 from tws import EjPiPi
 from telegram import TgWrapper
 import excel
@@ -22,7 +22,7 @@ MONTHS = {
   'Dec': "12"
 }
 
-# Hodnoty nemenne *za chodu programu* - uzivatelska konfigurace
+# Hodnoty nemenne za chodu programu - konfigurace
 tg_config = {
   'chat_id': -1001222852629,
   'api_id': 1281725,
@@ -36,11 +36,8 @@ tws_config = {
   'port': 7497
 }
 
-# Nastaveni loggeru
-logging.basicConfig(filename="log.txt", filemode="w", format='%(asctime)s-[%(levelname)s]-%(message)s',
-                    datefmt='%d-%b-%y %H:%M:%S')
-logging.getLogger().addHandler(logging.StreamHandler())
-
+# Inicializace databaze
+data.init_db()
 
 # Custom funkce
 def transform_expiration(date):
@@ -62,7 +59,7 @@ def digest_signal(signal):
     elif parts[0] == u"\U0001F347":  # hrozen
       parts[0] = "close"
     processed_signal = {
-      'emoji': parts[0],  # Open/Close pro otevreni/uzavreni pozice
+      'operace': parts[0],  # Open/Close pro otevreni/uzavreni pozice
       'akce': parts[1],  # Go/Close - reserved
       'ticker': parts[2],  # Symbol
       'expirace': transform_expiration(parts[3]),  # Expirace ve formatu YYYYMMDD (String)
@@ -81,7 +78,7 @@ def digest_signal(signal):
 # Vytvorime pozici a z tws zjistime jeji ID, zapiseme do DB
 def tws_position_open(params):
   print("OPENING POSITION")
-  tws_client.send_order()
+  tws_client.send_order(params)
 
 
 # Zkontrolujeme existenci odpovidajici pozice a podle jejiho ID zrusime
@@ -93,9 +90,10 @@ def tws_position_close(params):
 tg_queue = queue.Queue()
 ib_queue = queue.Queue()
 
-# Instance trid klientu
+# Instance klientu knihoven
 tg_client = TgWrapper(tg_config, tg_queue).session
 tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
+
 
 # # Hlavni event loop programu
 # if __name__ == "__main__":

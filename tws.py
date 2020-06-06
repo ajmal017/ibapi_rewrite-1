@@ -162,3 +162,4 @@ def runMe(symbol, expiration, right, strike, action,
 
 # TODO: Vytvorit funkci pro ruseni pozic
 # TODO: Sledovat splnene kontrakty a predavat do main threadu pro odstraneni z DB
+
