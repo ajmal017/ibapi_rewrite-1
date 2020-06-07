@@ -1,4 +1,5 @@
 import time
+import datetime
 import data
 from tws import EjPiPi
 from telegram import TgWrapper
@@ -36,10 +37,17 @@ tws_config = {
   'port': 7497
 }
 
-# Inicializace databaze
-data.init_db()
 
 # Custom funkce
+def process_order(signal):
+  if signal['operace'] == "open":
+    print("sending order")
+    tws_client.send_order(signal)
+    data.db_set_position(signal)
+    signal['vysledek'] = "Objednavka odeslana"
+    signal['cas_zpracovani'] = datetime.datetime.now()
+
+
 def transform_expiration(date):
   month = date[:3]
   day, year = date[3:].split("'")
@@ -48,7 +56,11 @@ def transform_expiration(date):
   return "20%s%s%s" % (year, MONTHS[month], day)
 
 
-def digest_signal(signal):
+def transform_unixtime(unixdate):
+  return unixdate
+
+
+def parse_signal(signal):
   signal_text = signal['text']
   signal_date = signal['date']
   processed_signal = 0
@@ -67,7 +79,9 @@ def digest_signal(signal):
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL)
       'mnozstvi': parts[6],  # Quantity
-      'cena': parts[9]  # Aktualni cena - reserved
+      'cena': parts[9],  # Aktualni cena - reserved
+      'puvodni_zprava': signal_text,
+      'cas_zpravy': datetime.datetime.fromtimestamp(signal_date)
     }
   except:
     pass  # TODO: Pridat exception handling
@@ -90,25 +104,27 @@ def tws_position_close(params):
 tg_queue = queue.Queue()
 ib_queue = queue.Queue()
 
+
 # Instance klientu knihoven
-tg_client = TgWrapper(tg_config, tg_queue).session
-tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
+def init_clients():
+  tg_client = TgWrapper(tg_config, tg_queue).session
+  tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
+  return tg_client, tws_client
 
 
 # # Hlavni event loop programu
-# if __name__ == "__main__":
-#   tg_client.start()
-#   print(tws_client.server_clock())
-#   print(tws_client.await_id())
-#
-#   while True:
-#     time.sleep(1)
-#     if not tg_queue.empty():
-#       raw_signal = tg_queue.get(timeout=5)
-#       print("RAW SIGNAL")
-#       print(raw_signal)
-#       digested_signal = digest_signal(raw_signal)
-#       if digested_signal['emoji'] == "open":
-#         tws_position_open(digested_signal)
-#       elif digested_signal['emoji'] == "close":
-#         tws_position_close(digested_signal)
+if __name__ == "__main__":
+  tg_client, tws_client = init_clients()
+  tg_client.start()
+  print(tws_client.server_clock())
+  print(tws_client.await_id())
+
+  while True:
+    time.sleep(1)
+    if not tg_queue.empty():
+      raw_signal = tg_queue.get(timeout=5)
+      signal_dict = parse_signal(raw_signal)
+      signal_dict['nasobeni'] = 1
+      process_order(signal_dict)
+      data.db_append_history(signal_dict)
+

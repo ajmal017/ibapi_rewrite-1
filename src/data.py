@@ -11,7 +11,7 @@ def init_db():
   connection = sqlite3.connect('storage.db')
   cursor = connection.cursor()
   cursor.execute("CREATE TABLE IF NOT EXISTS pozice("
-                 "id integer PRIMARY KEY,"
+                 "order_id integer PRIMARY KEY,"
                  "operace text,"
                  "ticker text,"
                  "expirace text,"
@@ -19,10 +19,12 @@ def init_db():
                  "strike integer,"
                  "smer text,"
                  "mnozstvi integer,"
-                 "nasobeni integer)")
+                 "nasobeni integer,"
+                 "status text)")
 
   cursor.execute("CREATE TABLE IF NOT EXISTS historie("
-                 "internal_id integer PRIMARY KEY,"
+                 "internal_id integer PRIMARY KEY AUTOINCREMENT ,"
+                 "order_id integer,"
                  "operace text,"
                  "akce text,"
                  "ticker text,"
@@ -42,13 +44,19 @@ def init_db():
 
 
 def db_set_position(diktator: dict):
-  #cursor.execute()
-  pass
+  print(diktator)
 
 
 def db_append_history(diktator: dict):
-  cursor.execute("INSERT INTO historie VALUES (%d,%s,%s,%s,%s,%s,%d,%s,%d,%d,%d,%s,%s,%s)"), \
-  diktator['id'], diktator['akce'], diktator['operace'], diktator['ticker'], diktator['expirace'], \
-  diktator['typ'], diktator['strike'], diktator['smer'], diktator['mnozstvi'], diktator['cena'], \
-  diktator['nasobeni'], diktator['puvodni_zprava'], diktator['cas_zpravy'], diktator['cas_zpracovani']
+  cursor.execute(
+    "INSERT INTO historie (order_id,operace,akce,ticker,expirace,typ,strike,smer,mnozstvi,cena,nasobeni,puvodni_zprava,cas_zpravy,cas_zpracovani,vysledek) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    (diktator['id'], diktator['operace'],  diktator['akce'], diktator['ticker'], diktator['expirace'],
+     diktator['typ'], diktator['strike'], diktator['smer'], diktator['mnozstvi'], diktator['cena'],
+     diktator['nasobeni'], diktator['puvodni_zprava'], diktator['cas_zpravy'], diktator['cas_zpracovani'],
+     diktator['vysledek']))
+  connection.commit()
 
+
+init_db()
+
+# TODO: Pridat exceptions

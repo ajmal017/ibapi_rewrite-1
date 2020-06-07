@@ -10,13 +10,17 @@ import time
 # Wrapper class
 class Wrapper(EWrapper):
 
-  # Inicializace datovych front pro servertime a error  #TODO: Pridat answers queue
+  # Inicializace datovych front pro servertime, answers a error
   # noinspection PyMissingConstructor
   def __init__(self):
     error_queue = queue.Queue()
     self.my_errors_queue = error_queue
+
     time_queue = queue.Queue()
     self.my_time_queue = time_queue
+
+    answers_queue = queue.Queue()
+    self.my_answers_queue = answers_queue
     self.next_id = 0
 
   # Answers handling    #TODO: Must be rewritten
@@ -27,13 +31,11 @@ class Wrapper(EWrapper):
     else:
       prms = fn_params
     answer = "[API ANSWER] %s %s" % (fn_name, prms)
-    # DEBUG
-    print(answer)
     if fn_name == "orderStatus":
       answer = "[ORDER STATUS %d]: " % prms["orderId"], prms["status"]
-      self.my_errors_queue.put(answer)
+    self.my_answers_queue.put(answer)
 
-  # Id handling
+  # Id reciever
   def nextValidId(self, order_id: int):
     self.next_id = order_id
 
@@ -52,9 +54,14 @@ class Wrapper(EWrapper):
     return None
 
   def error(self, reqId, errorCode, errorString):
-    errormessage = "[API ERROR %d] Error Code: %d Message: %s" % (reqId, errorCode, errorString)
+    errormessage = {
+      'id': reqId,
+      'code': errorCode,
+      'message': errorString
+    }
     if reqId == self.next_id:
-      print("IMPORTANT" + errormessage)
+      print("ORDER ERROR!")
+      print(errormessage)
     self.my_errors_queue.put(errormessage)
 
   # Time Handling
@@ -123,11 +130,26 @@ class EjPiPi(Wrapper, ElCliento):
     return order
 
   # Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
-  def send_order(self, symbol, expiration, right, strike, action, quantity):
+  def send_order(self, signal):
+    self.next_id = 0
+    self.reqIds(1)
+    for i in range(10):
+      if self.next_id != 0:
+        break
+      else:
+        time.sleep(1)
+      if i == 10:
+        raise TimeoutError('No valid order id recieved')
+    symbol = signal['ticker']
+    expiration = signal['expirace']
+    right = signal['typ']
+    strike = signal['strike']
+    action = signal['smer']
+    quantity = signal['mnozstvi']
     contract_object = self.contract_create(symbol, expiration, strike, right)
     order_object = self.order_create(action, quantity)
     self.placeOrder(self.next_id, contract_object, order_object)
-    self.reqIds(1)
+    signal['id'] = self.next_id
 
   def await_id(self):
     for i in range(10):
@@ -162,4 +184,3 @@ def runMe(symbol, expiration, right, strike, action,
 
 # TODO: Vytvorit funkci pro ruseni pozic
 # TODO: Sledovat splnene kontrakty a predavat do main threadu pro odstraneni z DB
-
