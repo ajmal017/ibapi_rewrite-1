@@ -1,11 +1,12 @@
+import os
+import sys
 import time
 import datetime
+import traceback
 import data
 from tws import EjPiPi
 from telegram import TgWrapper
-import excel
 import queue
-import threading
 
 # Globalni konstanty
 MONTHS = {
@@ -23,6 +24,10 @@ MONTHS = {
   'Dec': "12"
 }
 
+# Globalni fronty
+tg_queue = queue.Queue()
+ib_queue = queue.Queue()
+
 # Hodnoty nemenne za chodu programu - konfigurace
 tg_config = {
   'chat_id': -1001222852629,
@@ -33,22 +38,15 @@ excel_config = {
   'file': "/home/ktbsh/tmp/orders.xlsx"
 }
 tws_config = {
+  'nasobeni': 1,
   'ip': "127.0.0.1",
   'port': 7497
 }
 
 
-# Custom funkce
-def process_order(signal):
-  if signal['operace'] == "open":
-    print("sending order")
-    tws_client.send_order(signal)
-    data.db_set_position(signal)
-    signal['vysledek'] = "Objednavka odeslana"
-    signal['cas_zpracovani'] = datetime.datetime.now()
+# Pomocne funkce pro transformaci dat, nemeni stav programu
 
-
-def transform_expiration(date):
+def transform_expiration(date):  # Prelozi expiraci z formatu May1'19 do 20190501
   month = date[:3]
   day, year = date[3:].split("'")
   if int(day) < 10:
@@ -56,15 +54,11 @@ def transform_expiration(date):
   return "20%s%s%s" % (year, MONTHS[month], day)
 
 
-def transform_unixtime(unixdate):
-  return unixdate
-
-
-def parse_signal(signal):
-  signal_text = signal['text']
-  signal_date = signal['date']
+def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, vrati slovnik z prijatych parametru
   processed_signal = 0
   try:
+    signal_text = signal['text']
+    signal_date = signal['date']
     parts = signal_text.split()
     if parts[0] == u"\U0001F34F":  # jablko
       parts[0] = "open"
@@ -80,51 +74,61 @@ def parse_signal(signal):
       'smer': parts[5],  # Action (BUY/SELL)
       'mnozstvi': parts[6],  # Quantity
       'cena': parts[9],  # Aktualni cena - reserved
+      'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
       'cas_zpravy': datetime.datetime.fromtimestamp(signal_date)
     }
-  except:
-    pass  # TODO: Pridat exception handling
+  except Exception:
+    raise  # TODO: Pridat exception handling ---
+    # https://stackoverflow.com/questions/2052390/manually-raising-throwing-an-exception-in-python
   finally:
     return processed_signal
 
 
-# Vytvorime pozici a z tws zjistime jeji ID, zapiseme do DB
-def tws_position_open(params):
-  print("OPENING POSITION")
+# Funkce pro komunikaci s TWS modulem TODO: Presunout do tws modulu
+
+
+def process_order(signal):
+  if signal['operace'] == "open":
+    print("sending order")
+    tws_client.send_order(signal)
+    data.db_set_position(signal)
+    signal['vysledek'] = "Objednavka odeslana"
+    signal['cas_zpracovani'] = datetime.datetime.now()
+
+
+def tws_position_open(params):  # Vytvorime pozici a z tws zjistime jeji ID, zapiseme do DB
   tws_client.send_order(params)
+  return "OPENING POSITION"
 
 
-# Zkontrolujeme existenci odpovidajici pozice a podle jejiho ID zrusime
-def tws_position_close(params):
-  print("CLOSING POSITION")
+def tws_position_close(params):  # Zkontrolujeme existenci odpovidajici pozice a podle jejiho ID zrusime
+  return "CLOSING POSITION"
 
 
-# Fronty pro postupne zpracovani odpovedi serveru
-tg_queue = queue.Queue()
-ib_queue = queue.Queue()
-
-
-# Instance klientu knihoven
-def init_clients():
+# Instance klientu pro komunikaci s TG a TWS
+def get_clients():
   tg_client = TgWrapper(tg_config, tg_queue).session
   tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
   return tg_client, tws_client
 
 
-# # Hlavni event loop programu
+# Hlavni event loop programu
 if __name__ == "__main__":
-  tg_client, tws_client = init_clients()
-  tg_client.start()
-  print(tws_client.server_clock())
-  print(tws_client.await_id())
+  print("Spoustim pripojeni k API")
+  try:
+    tg_client, tws_client = get_clients()
+    tg_client.start()
+    # TODO: Vytvorit sjednocenou inicializacni metodu obsahujici server clock a ID printout
+    print(tws_client.refresh_next_id())
+  except Exception as e:
+    print("[CHYBA!]: Nepovedlo se pripojit k TWS nebo Telegramu")
+    traceback.print_exc()
 
   while True:
     time.sleep(1)
     if not tg_queue.empty():
       raw_signal = tg_queue.get(timeout=5)
       signal_dict = parse_signal(raw_signal)
-      signal_dict['nasobeni'] = 1
       process_order(signal_dict)
       data.db_append_history(signal_dict)
-

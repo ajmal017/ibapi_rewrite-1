@@ -5,6 +5,7 @@ from ibapi.order import *
 from threading import Thread
 import queue
 import time
+import inspect
 
 
 # Wrapper class
@@ -48,6 +49,8 @@ class Wrapper(EWrapper):
   def get_error(self, timeout=6):
     if self.is_error():
       try:
+        print("Just returned something from errors queue")
+        print("caller name:", inspect.stack()[1][3])
         return self.my_errors_queue.get(timeout=timeout)
       except queue.Empty:
         return None
@@ -59,6 +62,8 @@ class Wrapper(EWrapper):
       'code': errorCode,
       'message': errorString
     }
+    print("ERROR:")
+    print(errormessage)
     if reqId == self.next_id:
       print("ORDER ERROR!")
       print(errormessage)
@@ -97,6 +102,7 @@ class ElCliento(EClient):
 # Main Application class, automatically starts on init
 class EjPiPi(Wrapper, ElCliento):
   # Main classes initialization
+  # TODO: Nespoustet start() implicitne
   def __init__(self, ipaddress, portid, clientid):
     Wrapper.__init__(self)
     ElCliento.__init__(self, wrapper=self)
@@ -151,36 +157,37 @@ class EjPiPi(Wrapper, ElCliento):
     self.placeOrder(self.next_id, contract_object, order_object)
     signal['id'] = self.next_id
 
-  def await_id(self):
+  def refresh_next_id(self):
+    self.next_id = 0
+    self.reqIds(1)
     for i in range(10):
       if i < 10:
         if not self.next_id == 0:
-          return "Connection established with ID: %d" % self.next_id
+          return "ID %d prirazeno" % self.next_id
         else:
-          print("Connecting to server")
+          print("Ziskavam identifikator pro odeslani objednavky")
           time.sleep(1)
-      else:
-        return "Timed out"
+    raise TimeoutError("Nepodarilo se ziskat validni identifikator pro odeslani objednavky")
 
 
 # Basically what this retard does is starts the Application class, waits for servertime and ID, then places order, prints queues and returns with a [success] var
-def runMe(symbol, expiration, right, strike, action,
-          quantity):  # TODO: This nigga goin down - hanging around for organ picking
-  orderCompleted = False
-  app = EjPiPi("127.0.0.1", 7497, 0)
-  print(app.server_clock())
-  print(app.await_id())
-  app.send_order(symbol, expiration, right, strike, action, quantity)
-  time.sleep(3)
-  while app.is_error():
-    msg = app.get_error()
-    if msg[1] == "Submitted" or "Filled":
-      orderCompleted = True
-      app.disconnect()
-      break
-  time.sleep(1)
-  app.disconnect()
-  return orderCompleted
+# def runMe(symbol, expiration, right, strike, action,
+#           quantity):  # TODO: This nigga goin down - hanging around for organ picking
+#   orderCompleted = False
+#   app = EjPiPi("127.0.0.1", 7497, 0)
+#   print(app.server_clock())
+#   print(app.refresh_next_id())
+#   app.send_order(symbol, expiration, right, strike, action, quantity)
+#   time.sleep(3)
+#   while app.is_error():
+#     msg = app.get_error()
+#     if msg[1] == "Submitted" or "Filled":
+#       orderCompleted = True
+#       app.disconnect()
+#       break
+#   time.sleep(1)
+#   app.disconnect()
+#   return orderCompleted
 
 # TODO: Vytvorit funkci pro ruseni pozic
 # TODO: Sledovat splnene kontrakty a predavat do main threadu pro odstraneni z DB
