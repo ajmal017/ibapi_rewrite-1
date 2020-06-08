@@ -149,20 +149,20 @@ class EjPiPi(Wrapper, ElCliento):
     contract_object = self.contract_create(symbol, expiration, strike, right)
     order_object = self.order_create(action, quantity)
     self.placeOrder(self.next_id, contract_object, order_object)
-    signal['id'] = self.next_id
-    while True: # TODO: Pridat timeout
+    signal['order_id'] = self.next_id
+    while True:  # TODO: Pridat timeout
       if self.is_error():
         err = self.get_error(timeout=5)
         msg = err['message']
         log("[OBJEDNAVKA %d:]" % self.next_id, msg)
-        if 'id' in msg:
+        if 'id' in msg:  # klic 'id' se vyskytuje jen v ERROR
           if msg['id'] == self.next_id:
             print("MATCHING ID ERROR")
-            return "ERROR: " + str(msg), self.next_id
-        elif 'orderId' in msg:
+            raise UserWarning(msg)
+        elif 'orderId' in msg:  # klic 'orderId' se vyskytuje jen v ANSWER
           if msg['orderId'] == self.next_id:
             if 'status' in msg:
-              if msg['status'] != "PreSubmitted":
+              if msg['status'] == "Filled":  # obchod uzavren
                 return msg['status'], self.next_id
       else:
         time.sleep(1)

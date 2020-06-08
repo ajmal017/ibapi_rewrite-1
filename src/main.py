@@ -66,12 +66,12 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       parts[0] = "close"
     processed_signal = {
       'operace': parts[0],  # Open/Close pro otevreni/uzavreni pozice
-      'akce': parts[1],  # Go/Close - reserved
+      'akce': parts[1],  # Go/Close - duplikat, info
       'ticker': parts[2],  # Symbol
       'expirace': transform_expiration(parts[3]),  # Expirace ve formatu YYYYMMDD (String)
       'typ': parts[4].split("-")[0],  # Right (Call/Put)
       'strike': parts[4].split("-")[1],  # Hodnota strike
-      'smer': parts[5],  # Action (BUY/SELL)
+      'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
       'mnozstvi': parts[6],  # Quantity
       'cena': parts[9],  # Aktualni cena - reserved
       'nasobeni': tws_config['nasobeni'],
@@ -89,20 +89,29 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
 
 
 def process_order(signal):
-  if signal['operace'] == "open":
+  if signal['operace'] == "open":  # Odesli objednavku podle signalu
     print("ODESILAM OBJEDNAVKU: ", signal['puvodni_zprava'])
+
     signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
     data.db_set_position(signal)
     signal['cas_zpracovani'] = datetime.datetime.now()
 
+  elif signal['operace'] == "close":  # Zkontroluj otevrene pozice a pripadne uzavri, odecti/odstran aktivni stav v db
+    print("RUSIM POZICI: ", signal['puvodni_zprava'])
 
-def tws_position_open(params):  # Vytvorime pozici a z tws zjistime jeji ID, zapiseme do DB
-  tws_client.send_order(params)
-  return "OPENING POSITION"
-
-
-def tws_position_close(params):  # Zkontrolujeme existenci odpovidajici pozice a podle jejiho ID zrusime
-  return "CLOSING POSITION"
+    pozice, signal['original_id'] = data.find_matching_position(signal)  # signal[ticker, expirace, typ,
+    # strike] nasobeni a
+    # mnozstvi
+    # nize,
+    # vrati pocet obsazenych pozic nebo None
+    # TODO: Vratit nasobic pozice a nastavit do signalu
+    print(pozice)
+    if pozice >= signal['mnozstvi']:
+      signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
+      signal['cas_zpracovani'] = datetime.datetime.now()
+      data.db_close_position(signal['original_id'], signal['mnozstvi'], signal['vysledek'])
+    else:
+      print("Neni dostatek aktivnich pozic pro uzavreni")
 
 
 # Instance klientu pro komunikaci s TG a TWS
@@ -113,16 +122,8 @@ def get_clients():
 
 
 # Hlavni event loop programu
-if __name__ == "__main__":
-  print("Spoustim pripojeni k API")
-  try:
-    tg_client, tws_client = get_clients()
-    tg_client.start()
-    # TODO: Vytvorit sjednocenou inicializacni metodu obsahujici server clock a ID printout
-    print(tws_client.refresh_next_id())
-  except Exception as e:
-    print("[CHYBA!]: Nepovedlo se pripojit k TWS nebo Telegramu")
-    traceback.print_exc()
+
+def the_loop():
 
   while True:
     time.sleep(1)
@@ -135,3 +136,22 @@ if __name__ == "__main__":
       print("Operace: ", signal_dict['operace'])
       print("Mnozstvi:", signal_dict['mnozstvi'])
       print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
+
+
+if __name__ == "__main__":
+  print("Spoustim pripojeni k API")
+  try:
+    tg_client, tws_client = get_clients()
+    tg_client.start()
+    # TODO: Vytvorit sjednocenou inicializacni metodu obsahujici server clock a ID printout
+    while tws_client.is_error():
+      print(tws_client.get_error())
+    print(tws_client.refresh_next_id())
+  except Exception as e:
+    print("[CHYBA!]: Nepovedlo se pripojit k TWS nebo Telegramu")
+    traceback.print_exc()
+
+  the_loop()
+
+
+
