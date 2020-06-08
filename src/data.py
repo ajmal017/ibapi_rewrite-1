@@ -39,12 +39,16 @@ def init_db():
                  "cas_zpravy text,"
                  "cas_zpracovani text,"
                  "vysledek text)")
-  print("Tables checked and/or created")
   connection.commit()
 
 
 def db_set_position(diktator: dict):
-  print(diktator)
+  cursor.execute(
+    "INSERT INTO pozice (order_id,operace,ticker,expirace,typ,strike,smer,mnozstvi,nasobeni,status) VALUES (?,?,?,?,"
+    "?,?,?,?,?,?)",
+    (diktator['order_id'], diktator['operace'], diktator['ticker'], diktator['expirace'], diktator['typ'],
+     diktator['strike'], diktator['smer'], diktator['mnozstvi'], diktator['nasobeni'], diktator['vysledek'])
+  )
 
 
 def db_append_history(diktator: dict):

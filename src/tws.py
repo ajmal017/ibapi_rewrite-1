@@ -9,6 +9,10 @@ import inspect
 
 
 # Wrapper class
+def log(prefix, message):
+  print(prefix, message)
+
+
 class Wrapper(EWrapper):
 
   # Inicializace datovych front pro servertime, answers a error
@@ -31,10 +35,9 @@ class Wrapper(EWrapper):
       del prms['self']
     else:
       prms = fn_params
-    answer = "[API ANSWER] %s %s" % (fn_name, prms)
-    if fn_name == "orderStatus":
-      answer = "[ORDER STATUS %d]: " % prms["orderId"], prms["status"]
-    self.my_answers_queue.put(answer)
+    answer = {'type': "answer", 'function': fn_name, 'message': prms}
+    self.my_errors_queue.put(answer)
+    # log("[PUSH ANSWERS:]", answer)
 
   # Id reciever
   def nextValidId(self, order_id: int):
@@ -49,8 +52,6 @@ class Wrapper(EWrapper):
   def get_error(self, timeout=6):
     if self.is_error():
       try:
-        print("Just returned something from errors queue")
-        print("caller name:", inspect.stack()[1][3])
         return self.my_errors_queue.get(timeout=timeout)
       except queue.Empty:
         return None
@@ -62,12 +63,13 @@ class Wrapper(EWrapper):
       'code': errorCode,
       'message': errorString
     }
-    print("ERROR:")
-    print(errormessage)
-    if reqId == self.next_id:
-      print("ORDER ERROR!")
-      print(errormessage)
-    self.my_errors_queue.put(errormessage)
+    answer = {'type': "none", 'message': errormessage}
+    if errormessage['id'] == -1:
+      answer['type'] = "info"
+    else:
+      answer['type'] = "order_error"
+    # log("[PUSH ERROR:]", answer)
+    self.my_errors_queue.put(answer)
 
   # Time Handling
   def init_time(self):
@@ -90,11 +92,11 @@ class ElCliento(EClient):
     try:
       requested_time = time_storage.get(timeout=max_wait_time)
     except queue.Empty:
-      print("Queue empty or request timed out")
+      log("[SERVER CLOCK:]", "Queue empty or request timed out")
       requested_time = None
 
     while self.wrapper.is_error():
-      print(self.wrapper.get_error(timeout=5))
+      log("[SERVER CLOCK:]", self.wrapper.get_error(timeout=5))
 
     return requested_time
 
@@ -148,6 +150,22 @@ class EjPiPi(Wrapper, ElCliento):
     order_object = self.order_create(action, quantity)
     self.placeOrder(self.next_id, contract_object, order_object)
     signal['id'] = self.next_id
+    while True: # TODO: Pridat timeout
+      if self.is_error():
+        err = self.get_error(timeout=5)
+        msg = err['message']
+        log("[OBJEDNAVKA %d:]" % self.next_id, msg)
+        if 'id' in msg:
+          if msg['id'] == self.next_id:
+            print("MATCHING ID ERROR")
+            return "ERROR: " + str(msg), self.next_id
+        elif 'orderId' in msg:
+          if msg['orderId'] == self.next_id:
+            if 'status' in msg:
+              if msg['status'] != "PreSubmitted":
+                return msg['status'], self.next_id
+      else:
+        time.sleep(1)
 
   def refresh_next_id(self):
     self.next_id = 0
@@ -160,7 +178,6 @@ class EjPiPi(Wrapper, ElCliento):
           print("Ziskavam identifikator pro odeslani objednavky")
           time.sleep(1)
     raise TimeoutError("Nepodarilo se ziskat validni identifikator pro odeslani objednavky")
-
 
 # Basically what this retard does is starts the Application class, waits for servertime and ID, then places order, prints queues and returns with a [success] var
 # def runMe(symbol, expiration, right, strike, action,

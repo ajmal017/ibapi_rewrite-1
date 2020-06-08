@@ -90,10 +90,9 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
 
 def process_order(signal):
   if signal['operace'] == "open":
-    print("sending order")
-    tws_client.send_order(signal)
+    print("ODESILAM OBJEDNAVKU: ", signal['puvodni_zprava'])
+    signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
     data.db_set_position(signal)
-    signal['vysledek'] = "Objednavka odeslana"
     signal['cas_zpracovani'] = datetime.datetime.now()
 
 
@@ -132,3 +131,7 @@ if __name__ == "__main__":
       signal_dict = parse_signal(raw_signal)
       process_order(signal_dict)
       data.db_append_history(signal_dict)
+      print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
+      print("Operace: ", signal_dict['operace'])
+      print("Mnozstvi:", signal_dict['mnozstvi'])
+      print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
