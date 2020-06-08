@@ -137,15 +137,7 @@ class EjPiPi(Wrapper, ElCliento):
 
   # Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
   def send_order(self, signal):
-    self.next_id = 0
-    self.reqIds(1)
-    for i in range(10):
-      if self.next_id != 0:
-        break
-      else:
-        time.sleep(1)
-      if i == 10:
-        raise TimeoutError('No valid order id recieved')
+    self.refresh_next_id()
     symbol = signal['ticker']
     expiration = signal['expirace']
     right = signal['typ']
