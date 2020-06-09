@@ -179,24 +179,3 @@ class EjPiPi(Wrapper, ElCliento):
           time.sleep(1)
     raise TimeoutError("Nepodarilo se ziskat validni identifikator pro odeslani objednavky")
 
-# Basically what this retard does is starts the Application class, waits for servertime and ID, then places order, prints queues and returns with a [success] var
-# def runMe(symbol, expiration, right, strike, action,
-#           quantity):  # TODO: This nigga goin down - hanging around for organ picking
-#   orderCompleted = False
-#   app = EjPiPi("127.0.0.1", 7497, 0)
-#   print(app.server_clock())
-#   print(app.refresh_next_id())
-#   app.send_order(symbol, expiration, right, strike, action, quantity)
-#   time.sleep(3)
-#   while app.is_error():
-#     msg = app.get_error()
-#     if msg[1] == "Submitted" or "Filled":
-#       orderCompleted = True
-#       app.disconnect()
-#       break
-#   time.sleep(1)
-#   app.disconnect()
-#   return orderCompleted
-
-# TODO: Vytvorit funkci pro ruseni pozic
-# TODO: Sledovat splnene kontrakty a predavat do main threadu pro odstraneni z DB

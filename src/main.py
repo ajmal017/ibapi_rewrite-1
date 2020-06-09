@@ -79,7 +79,7 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'cas_zpravy': datetime.datetime.fromtimestamp(signal_date)
     }
   except Exception:
-    raise  # TODO: Pridat exception handling ---
+    raise  # TODO: Rozvinout exception handling ---
     # https://stackoverflow.com/questions/2052390/manually-raising-throwing-an-exception-in-python
   finally:
     return processed_signal
@@ -99,14 +99,10 @@ def process_order(signal):
   elif signal['operace'] == "close":  # Zkontroluj otevrene pozice a pripadne uzavri, odecti/odstran aktivni stav v db
     print("RUSIM POZICI: ", signal['puvodni_zprava'])
 
-    pozice, signal['original_id'] = data.find_matching_position(signal)  # signal[ticker, expirace, typ,
-    # strike] nasobeni a
-    # mnozstvi
-    # nize,
-    # vrati pocet obsazenych pozic nebo None
+    active_positions = data.find_matching_position(signal)
     # TODO: Vratit nasobic pozice a nastavit do signalu
-    print(pozice)
-    if pozice >= signal['mnozstvi']:
+    print(active_positions)
+    if active_positions >= signal['mnozstvi']:
       signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
       signal['cas_zpracovani'] = datetime.datetime.now()
       data.db_close_position(signal['original_id'], signal['mnozstvi'], signal['vysledek'])

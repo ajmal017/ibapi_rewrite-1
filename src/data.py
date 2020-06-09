@@ -11,16 +11,13 @@ def init_db():
   connection = sqlite3.connect('storage.db')
   cursor = connection.cursor()
   cursor.execute("CREATE TABLE IF NOT EXISTS pozice("
-                 "order_id integer PRIMARY KEY,"
-                 "operace text,"
+                 "id integer PRIMARY KEY AUTOINCREMENT ,"
                  "ticker text,"
                  "expirace text,"
                  "typ text,"
                  "strike integer,"
-                 "smer text,"
                  "mnozstvi integer,"
-                 "nasobeni integer,"
-                 "status text)")
+                 "nasobeni integer)")
 
   cursor.execute("CREATE TABLE IF NOT EXISTS historie("
                  "internal_id integer PRIMARY KEY AUTOINCREMENT ,"
@@ -42,43 +39,50 @@ def init_db():
   connection.commit()
 
 
-def find_matching_position(diktator):
+def find_matching_position(diktator):  # Vrati interni id a mnozstvi
   ticker = diktator['ticker']
   expirace = diktator['expirace']
   typ = diktator['typ']
   strike = diktator['strike']
-  cursor.execute("SELECT order_id, mnozstvi FROM pozice WHERE ticker = ? and expirace = ? and typ = ? and strike = ?",
+  cursor.execute("SELECT id, mnozstvi FROM pozice WHERE ticker = ? and expirace = ? and typ = ? and strike = ?",
                  (ticker, expirace, typ, strike))
   result = cursor.fetchall()
+  print(result)
   if result:
+    print(result[0])
     return result[0]
   else:
-    return None
+    return None, None
 
 
 def db_set_position(diktator: dict):
-  cursor.execute(
-    "INSERT INTO pozice (order_id,operace,ticker,expirace,typ,strike,smer,mnozstvi,nasobeni,status) VALUES (?,?,?,?,"
-    "?,?,?,?,?,?)",
-    (diktator['order_id'], diktator['operace'], diktator['ticker'], diktator['expirace'], diktator['typ'],
-     diktator['strike'], diktator['smer'], diktator['mnozstvi'], diktator['nasobeni'], diktator['vysledek'])
-  )
-
-def db_close_position(order_id, amount, result):
-  position = cursor.execute("SELECT order_id, mnozstvi, nasobeni  FROM pozice WHERE order_id=%d" % order_id)
-  position = cursor.fetchall()[0]
-
-  to_sell = amount
-  order_id = position[0]
-  held = position[1]
-  multiply = position[2]
-
-  if to_sell > held:
-    raise ValueError("Pokus o prodej vice kusu nez zbylo z predchozi objednavky")
+  id, amt = find_matching_position(diktator)
+  if id:
+    cursor.execute("UPDATE pozice SET mnozstvi=%d WHERE id=%d" % (amt + diktator['mnozstvi'], id))
   else:
-    cursor.execute("UPDATE pozice SET mnozstvi=%d WHERE order_id=%d" % (held-to_sell,order_id))
-    connection.commit()
+    cursor.execute(
+      "INSERT INTO pozice (ticker,expirace,typ,strike,mnozstvi,nasobeni) VALUES (?,?,?,?,?,?)",
+      (diktator['ticker'], diktator['expirace'], diktator['typ'],
+       diktator['strike'], diktator['mnozstvi'], diktator['nasobeni'])
+    )
+  connection.commit()
 
+
+def db_close_position(id, to_sell):
+  cursor.execute("SELECT mnozstvi, nasobeni FROM pozice WHERE id=%d" % id)
+  position = cursor.fetchall()[0]
+  print(position)
+
+  held = position[0]
+  to_hold = held - to_sell
+  if to_hold < 0:
+    raise ValueError("Pokus o prodej vice kusu nez zbylo z predchozi objednavky")
+  elif to_hold == 0:
+    cursor.execute("DELETE FROM pozice WHERE id=%d" % id)
+    pass
+  else:
+    cursor.execute("UPDATE pozice SET mnozstvi=%d WHERE id=%d" % (to_hold, id))
+    connection.commit()
 
 
 def db_append_history(diktator: dict):
