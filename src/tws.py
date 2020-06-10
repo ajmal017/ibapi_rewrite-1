@@ -154,7 +154,7 @@ class EjPiPi(Wrapper, ElCliento):
       if self.is_error():
         err = self.get_error(timeout=5)
         msg = err['message']
-        log("[OBJEDNAVKA %d:]" % self.next_id, msg)
+        #log("[OBJEDNAVKA %d:]" % self.next_id, msg)
         if 'id' in msg:  # klic 'id' se vyskytuje jen v ERROR
           if msg['id'] == self.next_id:
             print("MATCHING ID ERROR")
@@ -173,7 +173,8 @@ class EjPiPi(Wrapper, ElCliento):
     for i in range(10):
       if i < 10:
         if not self.next_id == 0:
-          return "ID %d prirazeno" % self.next_id
+          print("ID %d prirazeno" % self.next_id)
+          return
         else:
           print("Ziskavam identifikator pro odeslani objednavky")
           time.sleep(1)
