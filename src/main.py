@@ -72,11 +72,14 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'typ': parts[4].split("-")[0],  # Right (Call/Put)
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
-      'mnozstvi': parts[6],  # Quantity
+      'mnozstvi': int(parts[6]),  # Quantity
       'cena': parts[9],  # Aktualni cena - reserved
       'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
-      'cas_zpravy': datetime.datetime.fromtimestamp(signal_date)
+      'cas_zpravy': datetime.datetime.fromtimestamp(signal_date),
+      'order_id': 0,
+      'cas_zpracovani': "Nebylo zpracovano",
+      'vysledek': "Pokud se toto neprepsalo, v objednavce nastala chyba"
     }
   except Exception:
     raise  # TODO: Rozvinout exception handling ---
@@ -99,15 +102,15 @@ def process_order(signal):
   elif signal['operace'] == "close":  # Zkontroluj otevrene pozice a pripadne uzavri, odecti/odstran aktivni stav v db
     print("RUSIM POZICI: ", signal['puvodni_zprava'])
 
-    active_positions = data.find_matching_position(signal)
+    id, active_positions = data.find_matching_position(signal)
     # TODO: Vratit nasobic pozice a nastavit do signalu
-    print(active_positions)
-    if active_positions >= signal['mnozstvi']:
+    if id and active_positions >= signal['mnozstvi']:
       signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
       signal['cas_zpracovani'] = datetime.datetime.now()
-      data.db_close_position(signal['original_id'], signal['mnozstvi'], signal['vysledek'])
+      data.db_close_position(id, signal['mnozstvi'])
     else:
-      print("Neni dostatek aktivnich pozic pro uzavreni")
+      print("Neni dostatek aktivnich pozic pro uzavreni (pozice zalozene uzivatelem nejsou zahrnuty)")
+      # TODO: Pridat do vysledku
 
 
 # Instance klientu pro komunikaci s TG a TWS
@@ -142,7 +145,7 @@ if __name__ == "__main__":
     # TODO: Vytvorit sjednocenou inicializacni metodu obsahujici server clock a ID printout
     while tws_client.is_error():
       print(tws_client.get_error())
-    print(tws_client.refresh_next_id())
+    tws_client.refresh_next_id()
   except Exception as e:
     print("[CHYBA!]: Nepovedlo se pripojit k TWS nebo Telegramu")
     traceback.print_exc()

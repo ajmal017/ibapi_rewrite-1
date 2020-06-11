@@ -39,7 +39,7 @@ def init_db():
   connection.commit()
 
 
-def find_matching_position(diktator):  # Vrati interni id a mnozstvi
+def find_matching_position(diktator):  # Vyhleda pozici podle zadanych parametru, vrati interni id a mnozstvi
   ticker = diktator['ticker']
   expirace = diktator['expirace']
   typ = diktator['typ']
@@ -55,7 +55,7 @@ def find_matching_position(diktator):  # Vrati interni id a mnozstvi
     return None, None
 
 
-def db_set_position(diktator: dict):
+def db_set_position(diktator: dict): # Otevre nebo navysi pozici v db
   id, amt = find_matching_position(diktator)
   if id:
     cursor.execute("UPDATE pozice SET mnozstvi=%d WHERE id=%d" % (amt + diktator['mnozstvi'], id))
@@ -69,6 +69,7 @@ def db_set_position(diktator: dict):
 
 
 def db_close_position(id, to_sell):
+  # Odstrani nebo odecte pozici v db, vytvori error pri pokusu o prodej vice pozic nez bylo vytvoreno ze signalu
   cursor.execute("SELECT mnozstvi, nasobeni FROM pozice WHERE id=%d" % id)
   position = cursor.fetchall()[0]
   print(position)
