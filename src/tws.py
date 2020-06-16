@@ -146,7 +146,7 @@ class EjPiPi(Wrapper, ElCliento):
     right = signal['typ']
     strike = signal['strike']
     action = signal['smer']
-    quantity = signal['mnozstvi']
+    quantity = signal['mnozstvi'] * signal['nasobeni']
     contract_object = self.contract_create(symbol, expiration, strike, right)
     order_object = self.order_create(action, quantity)
     self.placeOrder(self.next_id, contract_object, order_object)
@@ -164,7 +164,7 @@ class EjPiPi(Wrapper, ElCliento):
           if msg['orderId'] == self.next_id:
             if 'status' in msg:
               if msg['status'] == "Filled":  # obchod uzavren
-                return msg['status'], self.next_id, msg['avgFillPrice']
+                return msg['status'], self.next_id, float(msg['avgFillPrice'])
       elif counter < 30:
         time.sleep(1)
         counter = counter + 1

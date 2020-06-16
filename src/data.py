@@ -31,6 +31,7 @@ def init_db():
                  "smer text,"
                  "mnozstvi integer,"
                  "cena integer,"
+                 "skutecna_cena float,"
                  "nasobeni integer,"
                  "puvodni_zprava text,"
                  "cas_zpravy text,"
@@ -44,7 +45,8 @@ def find_matching_position(diktator):  # Vyhleda pozici podle zadanych parametru
   expirace = diktator['expirace']
   typ = diktator['typ']
   strike = diktator['strike']
-  cursor.execute("SELECT id, mnozstvi FROM pozice WHERE ticker = ? and expirace = ? and typ = ? and strike = ?",
+  cursor.execute("SELECT id, mnozstvi FROM pozice WHERE ticker = ? and expirace = ? and typ = ? and strike "
+                 "= ?",
                  (ticker, expirace, typ, strike))
   result = cursor.fetchall()
   if result:
@@ -53,7 +55,7 @@ def find_matching_position(diktator):  # Vyhleda pozici podle zadanych parametru
     return None, None
 
 
-def db_set_position(diktator: dict): # Otevre nebo navysi pozici v db
+def db_set_position(diktator: dict):  # Otevre nebo navysi pozici v db
   id, amt = find_matching_position(diktator)
   if id:
     cursor.execute("UPDATE pozice SET mnozstvi=%d WHERE id=%d" % (amt + diktator['mnozstvi'], id))
@@ -85,9 +87,11 @@ def db_close_position(id, to_sell):
 
 def db_append_history(diktator: dict):
   cursor.execute(
-    "INSERT INTO historie (order_id,operace,akce,ticker,expirace,typ,strike,smer,mnozstvi,cena,nasobeni,puvodni_zprava,cas_zpravy,cas_zpracovani,vysledek) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    "INSERT INTO historie (order_id,operace,akce,ticker,expirace,typ,strike,smer,mnozstvi,cena,skutecna_cena,nasobeni,"
+    "puvodni_zprava,cas_zpravy,cas_zpracovani,vysledek) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
     (diktator['order_id'], diktator['operace'], diktator['akce'], diktator['ticker'], diktator['expirace'],
      diktator['typ'], diktator['strike'], diktator['smer'], diktator['mnozstvi'], diktator['cena'],
+     diktator['skutecna_cena'],
      diktator['nasobeni'], diktator['puvodni_zprava'], diktator['cas_zpravy'], diktator['cas_zpracovani'],
      diktator['vysledek']))
   connection.commit()

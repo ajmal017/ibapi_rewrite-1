@@ -38,7 +38,7 @@ excel_config = {
   'file': "/home/ktbsh/tmp/orders.xlsx"
 }
 tws_config = {
-  'nasobeni': 1,
+  'nasobeni': 3,
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -72,7 +72,8 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
       'mnozstvi': int(parts[6]),  # Quantity
-      'cena': parts[9],  # Cena signalu
+      'cena': int(parts[9]),  # Cena signalu
+      'skutecna_cena': float(0),
       'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
       'cas_zpravy': datetime.datetime.fromtimestamp(signal_date),
@@ -131,9 +132,8 @@ def the_loop():
         data.db_append_history(signal_dict)
         print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
         print("Operace: ", signal_dict['operace'])
-        print("Mnozstvi:", signal_dict['mnozstvi'])
-        if 'skutecna_cena' in signal_dict: # TODO: Zalogovat do DB
-          print("Cena (signal/skutecnost): %s/%s" % (signal_dict['cena'], signal_dict['skutecna_cena']))
+        print("Mnozstvi:", int(signal_dict['mnozstvi'])*int(signal_dict['nasobeni']))
+        print("Cena (signal/skutecnost): %d/%d" % (signal_dict['cena'], signal_dict['skutecna_cena']))
         print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
     except Exception as loop_error:
       tg_client.send_message("me", "CHYBA: %s" % loop_error)
