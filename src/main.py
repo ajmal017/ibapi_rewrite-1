@@ -72,13 +72,13 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
       'mnozstvi': int(parts[6]),  # Quantity
-      'cena': parts[9],  # Aktualni cena - reserved
+      'cena': parts[9],  # Cena signalu
       'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
       'cas_zpravy': datetime.datetime.fromtimestamp(signal_date),
       'order_id': 0,
       'cas_zpracovani': "Nebylo zpracovano",
-      'vysledek': "Pokud se toto neprepsalo, v objednavce nastala chyba"
+      'vysledek': "V objednavce nastala chyba"
     }
     return processed_signal
   except Exception as ee:
@@ -93,7 +93,7 @@ def process_order(signal):
   if signal['operace'] == "open":  # Odesli objednavku podle signalu
     print("ODESILAM OBJEDNAVKU: ", signal['puvodni_zprava'])
 
-    signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
+    signal['vysledek'], signal['order_id'], signal['skutecna_cena'] = tws_client.send_order(signal)
     data.db_set_position(signal)
     signal['cas_zpracovani'] = datetime.datetime.now()
 
@@ -103,7 +103,7 @@ def process_order(signal):
     id, active_positions = data.find_matching_position(signal)
     # TODO: Vratit nasobic pozice a nastavit do signalu
     if id and active_positions >= signal['mnozstvi']:
-      signal['vysledek'], signal['order_id'] = tws_client.send_order(signal)
+      signal['vysledek'], signal['order_id'], signal['skutecna_cena'] = tws_client.send_order(signal)
       signal['cas_zpracovani'] = datetime.datetime.now()
       data.db_close_position(id, signal['mnozstvi'])
     else:
@@ -132,6 +132,8 @@ def the_loop():
         print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
         print("Operace: ", signal_dict['operace'])
         print("Mnozstvi:", signal_dict['mnozstvi'])
+        if 'skutecna_cena' in signal_dict: # TODO: Zalogovat do DB
+          print("Cena (signal/skutecnost): %s/%s" % (signal_dict['cena'], signal_dict['skutecna_cena']))
         print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
     except Exception as loop_error:
       tg_client.send_message("me", "CHYBA: %s" % loop_error)

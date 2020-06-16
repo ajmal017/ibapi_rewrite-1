@@ -139,6 +139,7 @@ class EjPiPi(Wrapper, ElCliento):
 
   # Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
   def send_order(self, signal):
+    counter = 0
     self.refresh_next_id()
     symbol = signal['ticker']
     expiration = signal['expirace']
@@ -163,9 +164,13 @@ class EjPiPi(Wrapper, ElCliento):
           if msg['orderId'] == self.next_id:
             if 'status' in msg:
               if msg['status'] == "Filled":  # obchod uzavren
-                return msg['status'], self.next_id
-      else:
+                return msg['status'], self.next_id, msg['avgFillPrice']
+      elif counter < 30:
         time.sleep(1)
+        counter = counter + 1
+      else:
+        self.cancelOrder(self.next_id)
+        raise TimeoutError("Objednavka nebyla zpracovana dostatecne rychle - Rusim objednavku")
 
   def refresh_next_id(self):
     self.next_id = 0

@@ -47,9 +47,7 @@ def find_matching_position(diktator):  # Vyhleda pozici podle zadanych parametru
   cursor.execute("SELECT id, mnozstvi FROM pozice WHERE ticker = ? and expirace = ? and typ = ? and strike = ?",
                  (ticker, expirace, typ, strike))
   result = cursor.fetchall()
-  print(result)
   if result:
-    print(result[0])
     return result[0]
   else:
     return None, None
@@ -72,7 +70,6 @@ def db_close_position(id, to_sell):
   # Odstrani nebo odecte pozici v db, vytvori error pri pokusu o prodej vice pozic nez bylo vytvoreno ze signalu
   cursor.execute("SELECT mnozstvi, nasobeni FROM pozice WHERE id=%d" % id)
   position = cursor.fetchall()[0]
-  print(position)
 
   held = position[0]
   to_hold = held - to_sell
