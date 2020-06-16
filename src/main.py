@@ -55,7 +55,6 @@ def transform_expiration(date):  # Prelozi expiraci z formatu May1'19 do 2019050
 
 
 def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, vrati slovnik z prijatych parametru
-  processed_signal = 0
   try:
     signal_text = signal['text']
     signal_date = signal['date']
@@ -81,11 +80,10 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'cas_zpracovani': "Nebylo zpracovano",
       'vysledek': "Pokud se toto neprepsalo, v objednavce nastala chyba"
     }
-  except Exception:
-    raise  # TODO: Rozvinout exception handling ---
-    # https://stackoverflow.com/questions/2052390/manually-raising-throwing-an-exception-in-python
-  finally:
     return processed_signal
+  except Exception as ee:
+    raise ValueError("Nelze zpracovat signal - chyba formatu zpravy", ee)
+    # https://stackoverflow.com/questions/2052390/manually-raising-throwing-an-exception-in-python
 
 
 # Funkce pro komunikaci s TWS modulem TODO: Presunout do tws modulu
@@ -123,18 +121,21 @@ def get_clients():
 # Hlavni event loop programu
 
 def the_loop():
-
   while True:
-    time.sleep(1)
-    if not tg_queue.empty():
-      raw_signal = tg_queue.get(timeout=5)
-      signal_dict = parse_signal(raw_signal)
-      process_order(signal_dict)
-      data.db_append_history(signal_dict)
-      print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
-      print("Operace: ", signal_dict['operace'])
-      print("Mnozstvi:", signal_dict['mnozstvi'])
-      print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
+    try:
+      time.sleep(1)
+      if not tg_queue.empty():
+        raw_signal = tg_queue.get(timeout=5)
+        signal_dict = parse_signal(raw_signal)
+        process_order(signal_dict)
+        data.db_append_history(signal_dict)
+        print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
+        print("Operace: ", signal_dict['operace'])
+        print("Mnozstvi:", signal_dict['mnozstvi'])
+        print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
+    except Exception as loop_error:
+      tg_client.send_message("me", "CHYBA: %s" % loop_error)
+      raise
 
 
 if __name__ == "__main__":
@@ -151,6 +152,3 @@ if __name__ == "__main__":
     traceback.print_exc()
 
   the_loop()
-
-
-

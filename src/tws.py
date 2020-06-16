@@ -154,7 +154,7 @@ class EjPiPi(Wrapper, ElCliento):
       if self.is_error():
         err = self.get_error(timeout=5)
         msg = err['message']
-        #log("[OBJEDNAVKA %d:]" % self.next_id, msg)
+        # log("[OBJEDNAVKA %d:]" % self.next_id, msg)
         if 'id' in msg:  # klic 'id' se vyskytuje jen v ERROR
           if msg['id'] == self.next_id:
             print("MATCHING ID ERROR")
@@ -179,4 +179,3 @@ class EjPiPi(Wrapper, ElCliento):
           print("Ziskavam identifikator pro odeslani objednavky")
           time.sleep(1)
     raise TimeoutError("Nepodarilo se ziskat validni identifikator pro odeslani objednavky")
-
