@@ -39,6 +39,7 @@ excel_config = {
 }
 tws_config = {
   'nasobeni': 3,
+  'typ_objednavky': "MIT",  # Muze byt MIT nebo MKT
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -48,7 +49,12 @@ tws_config = {
 
 def transform_expiration(date):  # Prelozi expiraci z formatu May1'19 do 20190501
   month = date[:3]
-  day, year = date[3:].split("'")
+  if "'" in date:
+    day, year = date[3:].split("'")
+  elif "-" in date:
+    day, year = date[3:].split("-")
+  else:
+    raise ValueError("Chyba formatu expirace v signalu")
   if int(day) < 10:
     day = "0%d" % int(day)
   return "20%s%s%s" % (year, MONTHS[month], day)
@@ -79,7 +85,8 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'cas_zpravy': datetime.datetime.fromtimestamp(signal_date),
       'order_id': 0,
       'cas_zpracovani': "Nebylo zpracovano",
-      'vysledek': "V objednavce nastala chyba"
+      'vysledek': "V objednavce nastala chyba",
+      'order_type': tws_config['typ_objednavky']
     }
     return processed_signal
   except Exception as ee:
@@ -137,7 +144,6 @@ def the_loop():
         print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
     except Exception as loop_error:
       tg_client.send_message("me", "CHYBA: %s" % loop_error)
-      raise
 
 
 if __name__ == "__main__":

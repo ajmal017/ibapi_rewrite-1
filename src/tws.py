@@ -130,10 +130,11 @@ class EjPiPi(Wrapper, ElCliento):
     return contract
 
   @staticmethod
-  def order_create(action: str, quantity: float):
+  def order_create(action: str, quantity: float, order_type: str, aux_price: float):
     order = Order()
     order.action = action
-    order.orderType = "MKT"
+    order.orderType = order_type
+    order.auxPrice = aux_price
     order.totalQuantity = quantity
     return order
 
@@ -147,8 +148,10 @@ class EjPiPi(Wrapper, ElCliento):
     strike = signal['strike']
     action = signal['smer']
     quantity = signal['mnozstvi'] * signal['nasobeni']
+    price = signal['cena']
+    order_type = signal['order_type']
     contract_object = self.contract_create(symbol, expiration, strike, right)
-    order_object = self.order_create(action, quantity)
+    order_object = self.order_create(action, quantity, order_type, price)
     self.placeOrder(self.next_id, contract_object, order_object)
     signal['order_id'] = self.next_id
     while True:  # TODO: Pridat timeout
@@ -165,7 +168,7 @@ class EjPiPi(Wrapper, ElCliento):
             if 'status' in msg:
               if msg['status'] == "Filled":  # obchod uzavren
                 return msg['status'], self.next_id, float(msg['avgFillPrice'])
-      elif counter < 30:
+      elif counter < 60:
         time.sleep(1)
         counter = counter + 1
       else:
