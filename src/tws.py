@@ -139,41 +139,13 @@ class EjPiPi(Wrapper, ElCliento):
     return order
 
   # Ticker; Expirace; Typ; Strike; Smer; Mnozstvi
-  def send_order(self, signal):
+  def send_order(self, symbol, expiration, right, strike, action, quantity, price, order_type):
     counter = 0
     self.refresh_next_id()
-    symbol = signal['ticker']
-    expiration = signal['expirace']
-    right = signal['typ']
-    strike = signal['strike']
-    action = signal['smer']
-    quantity = signal['mnozstvi'] * signal['nasobeni']
-    price = signal['cena']
-    order_type = signal['order_type']
     contract_object = self.contract_create(symbol, expiration, strike, right)
     order_object = self.order_create(action, quantity, order_type, price)
     self.placeOrder(self.next_id, contract_object, order_object)
-    signal['order_id'] = self.next_id
-    while True:  # TODO: Pridat timeout
-      if self.is_error():
-        err = self.get_error(timeout=5)
-        msg = err['message']
-        # log("[OBJEDNAVKA %d:]" % self.next_id, msg)
-        if 'id' in msg:  # klic 'id' se vyskytuje jen v ERROR
-          if msg['id'] == self.next_id:
-            print("MATCHING ID ERROR")
-            raise UserWarning(msg)
-        elif 'orderId' in msg:  # klic 'orderId' se vyskytuje jen v ANSWER
-          if msg['orderId'] == self.next_id:
-            if 'status' in msg:
-              if msg['status'] == "Filled":  # obchod uzavren
-                return msg['status'], self.next_id, float(msg['avgFillPrice'])
-      elif counter < 60:
-        time.sleep(1)
-        counter = counter + 1
-      else:
-        self.cancelOrder(self.next_id)
-        raise TimeoutError("Objednavka nebyla zpracovana dostatecne rychle - Rusim objednavku")
+    return self.next_id
 
   def refresh_next_id(self):
     self.next_id = 0

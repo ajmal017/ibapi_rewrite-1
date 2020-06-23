@@ -22,8 +22,11 @@ class Objednavka:
     self.order_id = client.send_order(symbol=self.ticker, expiration=self.expirace, right=self.typ,
                                       strike=self.strike, action=self.smer, quantity=self.mnozstvi,
                                       price=self.cena, order_type=self.order_type)
+    print("Order sent, got ID %d" % self.order_id)
 
   def updateStatus(self, message):
+    print("Updating order %d" % self.order_id)
+    print(message)
     self.status = message['status']
 
   def cancel(self):

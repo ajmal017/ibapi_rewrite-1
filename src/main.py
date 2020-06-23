@@ -6,6 +6,7 @@ import traceback
 import data
 from tws import EjPiPi
 from telegram import TgWrapper
+from order_manager import OrderManager
 import queue
 
 # Globalni konstanty
@@ -39,7 +40,7 @@ excel_config = {
 }
 tws_config = {
   'nasobeni': 3,
-  'typ_objednavky': "MIT",  # Muze byt MIT nebo MKT
+  'typ_objednavky': "MKT",  # Muze byt MIT nebo MKT
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -133,15 +134,18 @@ def the_loop():
     try:
       time.sleep(1)
       if not tg_queue.empty():
+        orderman.updateOrders()
         raw_signal = tg_queue.get(timeout=5)
         signal_dict = parse_signal(raw_signal)
-        process_order(signal_dict)
-        data.db_append_history(signal_dict)
-        print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
-        print("Operace: ", signal_dict['operace'])
-        print("Mnozstvi:", int(signal_dict['mnozstvi'])*int(signal_dict['nasobeni']))
-        print("Cena (signal/skutecnost): %d/%d" % (signal_dict['cena'], signal_dict['skutecna_cena']))
-        print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
+        orderman.createOrder(signal_dict)
+
+        # process_order(signal_dict)
+        # data.db_append_history(signal_dict)
+        # print('Signal "%s" zpracovan s nasledujicimi parametry:' % signal_dict['puvodni_zprava'])
+        # print("Operace: ", signal_dict['operace'])
+        # print("Mnozstvi:", int(signal_dict['mnozstvi'])*int(signal_dict['nasobeni']))
+        # print("Cena (signal/skutecnost): %d/%d" % (signal_dict['cena'], signal_dict['skutecna_cena']))
+        # print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
     except Exception as loop_error:
       tg_client.send_message("me", "CHYBA: %s" % loop_error)
 
@@ -150,6 +154,9 @@ if __name__ == "__main__":
   print("Spoustim pripojeni k API")
   try:
     tg_client, tws_client = get_clients()
+
+    orderman = OrderManager(tws_client, tws_queue)
+
     tg_client.start()
     # TODO: Vytvorit sjednocenou inicializacni metodu obsahujici server clock a ID printout
     while tws_client.is_error():

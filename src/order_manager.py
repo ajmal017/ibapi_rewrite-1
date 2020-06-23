@@ -11,19 +11,31 @@ class OrderManager:
     queue = self.queue
     while not queue.empty():
       message = queue.get()
+      print(message)
       if 'id' in message:
         for order in self.orderlist:
           if order['id'] == message['id']:
-            order.update(message)
+            order.updateStatus(message['message'])
       elif 'orderId' in message:
         for order in self.orderlist:
           if order['id'] == message['orderId']:
-            order.update(message)
+            order.updateStatus(message['message'])
       else:
         print(message)
+    self.cleanUp()
+
+  def cleanUp(self):
+    for order in self.orderlist:
+      if order['status'] == "Cancelled" or "Filled":
+        print("Deleting dead order ", order)
+        self.orderlist.remove(order)
+      else:
+        print(order['status'])
 
   def createOrder(self, signal):
-    self.orderlist.append(Objednavka(signal, self.client))
+    objednavka = Objednavka(signal, self.client)
+    objednavka.execute()
+    self.orderlist.append(objednavka)
 
   def isOrderPending(self, ticker, typ, strike):
     for order in self.orderlist:
