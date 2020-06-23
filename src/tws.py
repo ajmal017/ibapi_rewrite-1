@@ -17,8 +17,8 @@ class Wrapper(EWrapper):
 
   # Inicializace datovych front pro servertime, answers a error
   # noinspection PyMissingConstructor
-  def __init__(self):
-    error_queue = queue.Queue()
+  def __init__(self, kveve):
+    error_queue = kveve
     self.my_errors_queue = error_queue
 
     time_queue = queue.Queue()
@@ -105,8 +105,8 @@ class ElCliento(EClient):
 class EjPiPi(Wrapper, ElCliento):
   # Main classes initialization
   # TODO: Nespoustet start() implicitne
-  def __init__(self, ipaddress, portid, clientid):
-    Wrapper.__init__(self)
+  def __init__(self, ipaddress, portid, clientid, kveve):
+    Wrapper.__init__(self, kveve)
     ElCliento.__init__(self, wrapper=self)
 
     self.connect(ipaddress, portid, clientid)

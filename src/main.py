@@ -26,13 +26,13 @@ MONTHS = {
 
 # Globalni fronty
 tg_queue = queue.Queue()
-ib_queue = queue.Queue()
+tws_queue = queue.Queue()
 
 # Hodnoty nemenne za chodu programu - konfigurace
 tg_config = {
-  'chat_id': -1001280269964,
-  'api_id': 1384288,
-  'api_hash': "4a7c0e08b8f2cbc08e1ac16d3a534079"
+  'chat_id': -1001222852629,
+  'api_id': 1281725,
+  'api_hash': "6d5593e5f014de19ab29e96dec9c5fec"
 }
 excel_config = {
   'file': "/home/ktbsh/tmp/orders.xlsx"
@@ -122,7 +122,7 @@ def process_order(signal):
 # Instance klientu pro komunikaci s TG a TWS
 def get_clients():
   tg_client = TgWrapper(tg_config, tg_queue).session
-  tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0)
+  tws_client = EjPiPi(tws_config['ip'], tws_config['port'], 0, tws_queue)
   return tg_client, tws_client
 
 
