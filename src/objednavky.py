@@ -15,7 +15,21 @@ class Objednavka:
     self.client = tws_client
     self.order_id = 0
     self.time_created = datetime.now()
-    self.status = ""
+    self.status = "Created - Not Submitted"
+
+  def __repr__(self):
+    return repr({
+      'order_id': self.order_id,
+      'ticker': self.ticker,
+      'typ': self.typ,
+      'strike': self.strike,
+      'smer': self.smer,
+      'status': self.status
+    })
+
+  def __str__(self):
+    return "ID: %d - %s/%s/%s-%s/%s:%d - Status: %s" % (self.order_id, self.ticker, self.expirace, self.typ,
+                                                        self.strike, self.smer, self.mnozstvi, self.status)
 
   def execute(self):
     client = self.client
@@ -25,10 +39,17 @@ class Objednavka:
     print("Order sent, got ID %d" % self.order_id)
 
   def updateStatus(self, message):
-    print("Updating order %d" % self.order_id)
-    print(message)
-    self.status = message['status']
+    if 'code' in message:
+      print("[ORDER ERROR] ", message)
+      self.status = "ERROR"
+    if 'status' in message:
+      print("Updating order %s to status %s" % (self, message['status']))
+      self.status = message['status']
 
   def cancel(self):
     self.client.cancelOrder(self.order_id)
     self.status = "Cancelled"
+
+  def comparison(self):
+    tupl = (self.ticker, self.expirace, self.typ, self.strike)
+    return tupl

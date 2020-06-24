@@ -40,7 +40,7 @@ excel_config = {
 }
 tws_config = {
   'nasobeni': 3,
-  'typ_objednavky': "MKT",  # Muze byt MIT nebo MKT
+  'typ_objednavky': "MIT",  # Muze byt MIT nebo MKT
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -132,9 +132,9 @@ def get_clients():
 def the_loop():
   while True:
     try:
+      orderman.updateOrders()
       time.sleep(1)
       if not tg_queue.empty():
-        orderman.updateOrders()
         raw_signal = tg_queue.get(timeout=5)
         signal_dict = parse_signal(raw_signal)
         orderman.createOrder(signal_dict)
@@ -148,6 +148,7 @@ def the_loop():
         # print("Vysledek: %s - ID: %d" % (signal_dict['vysledek'], signal_dict['order_id']))
     except Exception as loop_error:
       tg_client.send_message("me", "CHYBA: %s" % loop_error)
+      raise
 
 
 if __name__ == "__main__":
