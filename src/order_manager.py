@@ -33,6 +33,7 @@ class OrderManager:
 
   def createOrder(self, signal):
     objednavka = Objednavka(signal, self.client)
+    # TODO: Zkontrolovat protilehle aktivni objednavky
     objednavka.execute()
     self.orderlist.append(objednavka)
 
