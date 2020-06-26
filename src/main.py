@@ -41,8 +41,8 @@ excel_config = {
 tws_config = {
   'nasobeni': 3,
   'typ_objednavky': "LMT",  # Muze byt MIT, LMT nebo MKT
-  'cena_offset': 0,
-  'cena_procenta': 100,
+  'cena_offset': 5,
+  'cena_procenta': 110,
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -68,9 +68,14 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
     signal_text = signal['text']
     signal_date = signal['date']
     parts = signal_text.split()
+    procenta = tws_config['cena_procenta']
+    offset = tws_config['cena_offset']
     if parts[0] == u"\U0001F34F":  # jablko
       parts[0] = "open"
+      # cena =
     elif parts[0] == u"\U0001F347":  # hrozen
+      procenta = 100 - (procenta - 100)
+      offset = 0 - offset
       parts[0] = "close"
     processed_signal = {
       'operace': parts[0],  # Open/Close pro otevreni/uzavreni pozice
@@ -81,7 +86,7 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
       'mnozstvi': int(parts[6]),  # Quantity
-      'cena': ((float(parts[9])/100) * tws_config['cena_procenta']) + tws_config['cena_offset'],  # Cena signalu
+      'cena': ((float(parts[9])/100) * procenta) + offset,  # Cena signalu
       'skutecna_cena': float(0),
       'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
