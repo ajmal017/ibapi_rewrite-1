@@ -96,6 +96,8 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'vysledek': "V objednavce nastala chyba",
       'order_type': tws_config['typ_objednavky']
     }
+    if tws_config['typ_objednavky'] == "LMT":
+      processed_signal['cena'] = processed_signal['cena']/100
     return processed_signal
   except Exception as ee:
     raise ValueError("Nelze zpracovat signal - chyba formatu zpravy", ee)
