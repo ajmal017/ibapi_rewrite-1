@@ -39,10 +39,10 @@ excel_config = {
   'file': "/home/ktbsh/tmp/orders.xlsx"
 }
 tws_config = {
-  'nasobeni': 3,
+  'nasobeni': 1,
   'typ_objednavky': "LMT",  # Muze byt MIT, LMT nebo MKT
-  'cena_offset': 5,
-  'cena_procenta': 110,
+  'cena_offset': 0,
+  'cena_procenta': 100,
   'ip': "127.0.0.1",
   'port': 7497
 }
