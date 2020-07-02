@@ -135,6 +135,7 @@ class EjPiPi(Wrapper, ElCliento):
     order.action = action
     order.orderType = order_type
     order.auxPrice = aux_price
+    order.lmtPrice = aux_price
     order.totalQuantity = quantity
     return order
 

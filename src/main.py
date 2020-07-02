@@ -39,8 +39,10 @@ excel_config = {
   'file': "/home/ktbsh/tmp/orders.xlsx"
 }
 tws_config = {
-  'nasobeni': 3,
-  'typ_objednavky': "MIT",  # Muze byt MIT nebo MKT
+  'nasobeni': 1,
+  'typ_objednavky': "LMT",  # Muze byt MIT, LMT nebo MKT
+  'cena_offset': 0,
+  'cena_procenta': 100,
   'ip': "127.0.0.1",
   'port': 7497
 }
@@ -66,9 +68,14 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
     signal_text = signal['text']
     signal_date = signal['date']
     parts = signal_text.split()
+    procenta = tws_config['cena_procenta']
+    offset = tws_config['cena_offset']
     if parts[0] == u"\U0001F34F":  # jablko
       parts[0] = "open"
+      # cena =
     elif parts[0] == u"\U0001F347":  # hrozen
+      procenta = 100 - (procenta - 100)
+      offset = 0 - offset
       parts[0] = "close"
     processed_signal = {
       'operace': parts[0],  # Open/Close pro otevreni/uzavreni pozice
@@ -79,7 +86,7 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'strike': parts[4].split("-")[1],  # Hodnota strike
       'smer': parts[5],  # Action (BUY/SELL) - podle otevreni/uzavreni pozice
       'mnozstvi': int(parts[6]),  # Quantity
-      'cena': int(parts[9]),  # Cena signalu
+      'cena': ((float(parts[9])/100) * procenta) + offset,  # Cena signalu
       'skutecna_cena': float(0),
       'nasobeni': tws_config['nasobeni'],
       'puvodni_zprava': signal_text,
@@ -89,6 +96,8 @@ def parse_signal(signal):  # Prijme text a datum zpravy z telegramu jako dict, v
       'vysledek': "V objednavce nastala chyba",
       'order_type': tws_config['typ_objednavky']
     }
+    if tws_config['typ_objednavky'] == "LMT":
+      processed_signal['cena'] = processed_signal['cena']/100
     return processed_signal
   except Exception as ee:
     raise ValueError("Nelze zpracovat signal - chyba formatu zpravy", ee)
@@ -132,6 +141,7 @@ def get_clients():
 def the_loop():
   while True:
     try:
+      orderman.printOrders()
       orderman.updateOrders()
       time.sleep(1)
       if not tg_queue.empty():

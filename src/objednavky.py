@@ -15,7 +15,8 @@ class Objednavka:
     self.client = tws_client
     self.order_id = 0
     self.time_created = datetime.now()
-    self.status = "Created - Not Submitted"
+    self.status = "PreSend"
+    self.remaining = "n/a"
 
   def __repr__(self):
     return repr({
@@ -24,32 +25,36 @@ class Objednavka:
       'typ': self.typ,
       'strike': self.strike,
       'smer': self.smer,
-      'status': self.status
+      'status': self.status,
+      'zbyva': self.remaining
     })
 
   def __str__(self):
-    return "ID: %d - %s/%s/%s-%s/%s:%d - Status: %s" % (self.order_id, self.ticker, self.expirace, self.typ,
-                                                        self.strike, self.smer, self.mnozstvi, self.status)
+    return "ID: %d - %s/%s/%s-%s/%s:%d - Zbyva: %s Status: %s" % (self.order_id, self.ticker, self.expirace, self.typ,
+                                                                  self.strike, self.smer, self.mnozstvi, self.remaining,
+                                                                  self.status)
 
   def execute(self):
     client = self.client
     self.order_id = client.send_order(symbol=self.ticker, expiration=self.expirace, right=self.typ,
                                       strike=self.strike, action=self.smer, quantity=self.mnozstvi,
                                       price=self.cena, order_type=self.order_type)
-    print("Order sent, got ID %d" % self.order_id)
+    print("Objednavka zadana do systemu - ziskane ID: %d" % self.order_id)
 
   def updateStatus(self, message):
     if 'code' in message:
       print("[ORDER ERROR] ", message)
       self.status = "ERROR"
     if 'status' in message:
-      print("Updating order %s to status %s" % (self, message['status']))
+      print("Aktualizuji stav objednavky: %s na: %s" % (self, message['status']))
       self.status = message['status']
+      if 'remaining' in message:
+        self.remaining = message['remaining']
 
   def cancel(self):
     self.client.cancelOrder(self.order_id)
     self.status = "Cancelled"
 
-  def comparison(self):
+  def compare(self):
     tupl = (self.ticker, self.expirace, self.typ, self.strike)
     return tupl

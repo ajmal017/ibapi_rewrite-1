@@ -1,4 +1,5 @@
 from objednavky import Objednavka
+from datetime import datetime
 
 
 class OrderManager:
@@ -6,13 +7,25 @@ class OrderManager:
     self.client = tws_client
     self.queue = tws_queue
     self.orderlist = []
+    self.message = ""
+
+  def printOrders(self):
+    timestamp = '{0:%H:%M:%S}'.format(datetime.now())
+    message = " _______________\n Stav objednavek: "
+    for order in self.orderlist:
+      message = message + "\n " + order.__str__()
+    message = message + "\n _______________\n"
+    if message != self.message:
+      print("\n ", timestamp)
+      print(message)
+      self.message = message
 
   def updateOrders(self):
     queue = self.queue
     while not queue.empty():
       message_raw = queue.get()
       message = message_raw['message']
-      print("     [RAW_MSG]:", message_raw)
+      print("     [RAW_MSG]:", message_raw) # TODO: send to some logger
       if 'id' in message:
         for order in self.orderlist:
           if order.order_id == message['id']:
@@ -25,21 +38,23 @@ class OrderManager:
 
   def cleanUp(self):
     for order in self.orderlist:
-      if order.status == "Cancelled" or order.status == "Filled" or order.status == "ERROR":
-        print("Deleting dead order ", order)
+      if order.status == "Cancelled" or order.status == "Filled" or order.status == "ERROR" or order.status == "Inactive":
+        print("Odstranuji zpracovanou objednavku: ", order)
         self.orderlist.remove(order)
-      else:
-        print(order)
 
   def createOrder(self, signal):
-    objednavka = Objednavka(signal, self.client)
-    # TODO: Zkontrolovat protilehle aktivni objednavky
-    objednavka.execute()
-    self.orderlist.append(objednavka)
+    objednavka_new = Objednavka(signal, self.client)
+    objednavka_old = self.isOrderPending(objednavka_new)
+    if not objednavka_old:
+      objednavka_new.execute()
+      self.orderlist.append(objednavka_new)
+    else:
+      print("Konflikt otevrenych objednavek, rusim puvodni objednavku %s" % objednavka_old)
+      objednavka_old.cancel()
+      print("Ignoruji konfliktni objednavku %s" % objednavka_new)
 
-  def isOrderPending(self, ticker, typ, strike):
+  def isOrderPending(self, new_order):
     for order in self.orderlist:
-      if order['ticker'] == ticker and order['typ'] == typ and order['strike'] == strike:
-        return order['remaining']
-      else:
-        return 0
+      if new_order.compare() == order.compare() and new_order.smer != order.smer:
+        return order
+    return None
