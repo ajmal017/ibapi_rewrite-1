@@ -141,6 +141,7 @@ def get_clients():
 def the_loop():
   while True:
     try:
+      orderman.printOrders()
       orderman.updateOrders()
       time.sleep(1)
       if not tg_queue.empty():
